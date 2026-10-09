@@ -5,11 +5,40 @@
 
 ## 1. Visión General
 
-HegiaStock es una aplicación web de consulta y verificación de inventario para Inversiones Hegiapesa S.A.C. Permite al Vendedor de mostrador consultar stock disponible, ubicación física y categorías de productos, así como registrar solicitudes formales de verificación ante discrepancias. El sistema se construye como un monolito modular con renderizado en servidor (FastAPI + Jinja2), lee el catálogo de ~280 productos desde SQLite 3 (`hegiastock.db`) y persiste únicamente tickets de verificación en la misma base de datos. No almacena datos personales de clientes (Ley N.° 29733). El punto de extensión para el agente conversacional queda reservado para la Unidad 3 y no se implementa en esta fase.
+HegiaStock es una aplicación web de consulta y verificación de inventario para Inversiones Hegiapesa S.A.C. Permite al Vendedor de mostrador consultar stock disponible, ubicación física y categorías de productos, así como registrar solicitudes formales de verificación ante discrepancias. El sistema se construye como un monolito modular con renderizado en servidor (FastAPI + Jinja2), lee el catálogo de productos (cantidad exacta: **PENDIENTE — confirmar con el área de logística de Hegiapesa S.A.C.**) desde SQLite 3 (`hegiastock.db`) y persiste únicamente tickets de verificación en la misma base de datos. No almacena datos personales de clientes (Ley N.° 29733). El punto de extensión para el agente conversacional queda reservado para la Unidad 3 y no se implementa en esta fase.
 
 ---
 
 ## 2. Diagramas de Arquitectura
+
+### 2.0 Diagrama C4 Nivel 1 — Contexto del Sistema
+
+```mermaid
+flowchart TB
+    subgraph Personas["Personas"]
+        V["Vendedor de mostrador\n(consulta stock en tiempo real)"]
+        AL["Almacenero\n(recibe tickets de verificación)"]
+        ADM["Administrador / Gerente\n(supervisa incidencias)"]
+    end
+
+    SYS["Sistema HegiaStock\n(aplicación web SSR · FastAPI + Jinja2 · SQLite 3)"]
+
+    subgraph SistemasExternos["Sistemas Externos — Unidad 3 (no implementados en Unidad 2)"]
+        MCP["Servidor MCP de Inventario\n(solo lectura · ~280 registros)\n[PENDIENTE Unidad 3]"]
+        RAG["Motor RAG\n(normas · políticas · PDF/Markdown)\n[PENDIENTE Unidad 3]"]
+        LLM["Gemini API\n(clasificación · síntesis)\n[PENDIENTE Unidad 3]"]
+    end
+
+    V   -- "Consulta stock, ubicación,\ncategoría; crea tickets" --> SYS
+    AL  -- "Consulta tickets\nasignados" --> SYS
+    ADM -- "Supervisa incidencias;\ncarga documentos" --> SYS
+
+    SYS -. "Unidad 3: lectura\nde inventario" .-> MCP
+    SYS -. "Unidad 3: consulta\nnormativa" .-> RAG
+    SYS -. "Unidad 3: lenguaje\nnatural" .-> LLM
+```
+
+> **Nota:** Las conexiones punteadas a sistemas externos son puntos de extensión reservados para la Unidad 3. En la Unidad 2 el catálogo de inventario (≈ PENDIENTE confirmar cantidad exacta de registros — ver Hallazgo C10) se carga directamente en SQLite 3 (`hegiastock.db`).
 
 ### 2.1 Diagrama C4 Nivel 2 — Contenedores
 
@@ -212,9 +241,48 @@ flowchart TB
 | **Plantillas Jinja2** | Renderizan el HTML completo de cada página (stock, ubicación, categoría, tickets). | `templates/` | HU01, HU02, HU03, HU05 |
 | **Estilos y Accesibilidad** | Diseño responsivo con fuente ≥ 16 px, contraste WCAG AA y atributos ARIA. | `static/styles.css` | Transversal |
 
+> **Nota C12 — Módulo de Usuarios no implementado en Unidad 2:** el modelo de datos incluye las tablas `rol` y `usuario` (trazadas a HU07). No se declara `RuteadorUsuarios` ni `ServicioUsuarios` en esta tabla porque la decisión de implementar autenticación en Unidad 2 está diferida (ver sección 8, ítem 9 y ADR-004). Si el equipo decide activar login en Unidad 2, deberá agregar los componentes `RuteadorUsuarios`, `ServicioUsuarios` y `RepositorioUsuarios` en `backend/modules/usuarios/` y actualizar esta tabla.
+
 ---
 
-## 6. Punto de Extensión para la Unidad 3
+## 5.1 Modelo de Datos
+
+El modelo de datos completo (diagrama ER, tabla de trazabilidad entidad→componente→historia y análisis de protección de datos Ley N.° 29733) se encuentra en:
+
+**[`docs/arquitectura/modelo_datos.md`](../../docs/arquitectura/modelo_datos.md)**
+
+El script DDL para MySQL/MariaDB (XAMPP, entorno de desarrollo) está en:
+
+**[`database/schema.sql`](../../database/schema.sql)**
+
+> **Divergencia de motor documentada:** el DDL de desarrollo usa MySQL/MariaDB (XAMPP); el motor de producción de la Unidad 2 es SQLite 3. Ver ADR-002 sección «Consecuencias — Deuda aceptada».
+
+---
+
+## 5.2 Interfaces y Contratos de Endpoints
+
+Todos los endpoints son SSR (Server-Side Rendering): devuelven `text/html` salvo donde se indica explícitamente `application/json`.
+
+| Método | Ruta | Parámetros de entrada | Respuesta exitosa | Códigos de error | Componente | Historia |
+|---|---|---|---|---|---|---|
+| `GET` | `/stock` | `q: str` (query — SKU o nombre) · `modo: str` (`sku`\|`nombre`\|`auto`, default `auto`) | `200 HTML` — `stock.html` con producto o lista de coincidencias | `400` parámetro vacío · `404` no encontrado · `503` BD no disponible | RuteadorStock → ServicioStock | HU01 |
+| `GET` | `/ubicacion` | `sku: str` (requerido) | `200 HTML` — `ubicacion.html` con pasillo y estante | `400` SKU vacío · `404` sin ubicación registrada · `503` BD | RuteadorUbicacion → ServicioUbicacion | HU02 |
+| `GET` | `/categoria` | `nombre: str` (requerido) | `200 HTML` — `categoria.html` con hasta 10 productos con stock > 0, ordenados desc | `400` · `404` categoría inexistente · `204` categoría existe pero sin stock | RuteadorCategoria → ServicioCategoria | HU03 |
+| `GET` | `/tickets` | `estado: str` (opcional — `Pendiente`\|`En Verificación`\|`Cerrado`) · `pagina: int` (default 1) | `200 HTML` — `tickets.html` con lista paginada | `400` estado inválido · `503` BD | RuteadorTickets → RepositorioTickets | HU05 |
+| `POST` | `/tickets` | Formulario: `sku: str` (requerido) | `303 Redirect → /tickets/{ticket_id}` — ticket VER-NNN creado | `400` SKU inválido · `422` validación Pydantic · `503` BD | RuteadorTickets → ServicioTickets | HU05 |
+| `GET` | `/tickets/{ticket_id}` | `ticket_id: str` — formato `VER-NNN` | `200 HTML` — `ticket_detalle.html` | `404` ticket no encontrado · `400` formato inválido | RuteadorTickets → RepositorioTickets | HU05 |
+| `GET` | `/health` | — | `200 JSON` — `{"sqlite": "ok", "version": "..."}` | `503 JSON` — `{"sqlite": "error", "detalle": "..."}` | RuteadorSalud | Transversal |
+
+**Contratos de datos (Schemas Pydantic — `backend/core/schemas.py`):**
+
+| Schema | Campos | Validaciones clave |
+|---|---|---|
+| `ConsultaStockRequest` | `q: str`, `modo: Literal["sku","nombre","auto"]` | `q` min 1 car., max 100 car. |
+| `ProductoDetalle` | `sku`, `nombre_comercial`, `nombre_categoria`, `cantidad_disponible: int`, `unidad`, `pasillo: int \| None`, `estante: str \| None` | `cantidad_disponible ≥ 0` |
+| `CrearTicketRequest` | `sku: str` | min 1 car., max 50 car.; sin campos de PDP |
+| `TicketResponse` | `ticket_id: str`, `sku`, `estado`, `creado_en: datetime` | `ticket_id` regex `^VER-\d{3,}$` |
+
+> **Punto de extensión Unidad 3:** el endpoint `POST /consulta` (o equivalente en `/stock`) aceptará adicionalmente `Content-Type: application/json` cuando el agente conversacional lo invoque. Los módulos de dominio no cambian; solo el ruteador añade un discriminador de tipo de contenido.
 
 En la Unidad 3 se conectará un agente conversacional al sistema. Esta sección reserva el lugar de esa conexión sin diseñarla ni implementarla.
 
@@ -224,26 +292,37 @@ Lo que **no** se define aquí: el protocolo del agente, su arquitectura interna,
 
 ---
 
-## 7. Decisiones No Tomadas
+## 8. Decisiones No Tomadas
 
 Las siguientes decisiones quedan diferidas al diseño detallado o a fases posteriores:
 
-1. **Modelo de sesión en memoria vs. Redis.** El orquestador mantiene el historial por `session_id` en un diccionario en proceso. No se ha decidido si se usará Redis u otro mecanismo de persistencia de sesiones para soportar reinicios del servidor sin pérdida de contexto.
+1. **Estrategia de autenticación y autorización.** No se define mecanismo de login, tokens JWT ni separación de roles (Vendedor / Almacenero / Administrador) a nivel de ruteador. Queda para el diseño detallado determinar si se usará autenticación básica HTTP, sesiones con cookie firmada u OAuth 2.0. Ver ADR-004.
 
-2. **Estrategia de autenticación y autorización.** No se define mecanismo de login, tokens JWT ni separación de roles (Vendedor / Almacenero / Administrador) a nivel de API. Queda para el diseño detallado determinar si se usará autenticación básica, OAuth 2.0 u otro esquema.
+2. **Gestión de versiones del esquema SQLite.** Se usa `init_db()` para crear tablas; no se define una estrategia de migraciones (Alembic u otro) para cambios futuros al esquema sin pérdida de datos.
 
-3. **Gestión de versiones del esquema SQLite.** Se usa `init_db()` para crear tablas; no se define una estrategia de migraciones (Alembic u otro) para cambios futuros al esquema sin pérdida de datos.
+3. **Política de retención y rotación de `audit_log`.** No se especifica cuánto tiempo se conservan los registros de auditoría ni si existe un proceso de purga periódica.
 
-4. **Política de retención y rotación de `audit_log`.** No se especifica cuánto tiempo se conservan los registros de auditoría ni si existe un proceso de purga periódica.
+4. **Concurrencia de escritura en SQLite.** Se acepta `BEGIN IMMEDIATE` para tickets, pero no se define qué sucede si el volumen de tickets supera el umbral de bloqueo antes de la Semana 7 (ver criterio de reversión ADR-002).
 
-5. **Concurrencia de escritura en SQLite.** Se acepta `BEGIN IMMEDIATE` para tickets, pero no se define qué sucede si el volumen de tickets supera el umbral de bloqueo antes de la Semana 7 (ver criterio de reversión ADR-002).
+5. **Formato y destino del `audit_log`.** Se declara la tabla en el ORM pero no se especifica qué eventos exactos se registran, con qué granularidad ni si el log se exporta a un sistema externo.
 
-6. **Modelo de embedding seleccionado para ChromaDB.** Las tareas citan `text-embedding-004` de Google, pero no se fija versión ni se define política de re-indexación cuando el modelo cambie.
+6. **Configuración de CORS y cabeceras de seguridad HTTP.** No se define la política de `Content-Security-Policy` ni otras cabeceras de endurecimiento para el servidor Uvicorn.
 
-7. **Formato y destino del `audit_log`.** Se declara la tabla en el ORM pero no se especifica qué eventos exactos se registran, con qué granularidad ni si el log se exporta a un sistema externo.
+7. **Estrategia de despliegue en cuenta gratuita (Semanas 7–8).** ADR-001 menciona un entorno de despliegue gratuito, pero no se ha seleccionado plataforma ni se han definido variables de entorno para ese entorno.
 
-8. **Configuración de CORS y cabeceras de seguridad HTTP.** No se define la política de `Access-Control-Allow-Origin`, `Content-Security-Policy` ni otras cabeceras de endurecimiento para el servidor Uvicorn.
+8. **Internacionalización y zona horaria en la interfaz.** La fecha/hora de tickets usa `America/Lima (UTC-5)` en el backend; no se define cómo se presenta al usuario ni si el frontend adapta el formato según configuración regional.
 
-9. **Estrategia de despliegue en cuenta gratuita (Semanas 7–8).** ADR-001 menciona un entorno de despliegue gratuito, pero no se ha seleccionado plataforma ni se han definido variables de entorno para ese entorno.
+9. **Módulo de Usuarios / Autenticación en Unidad 2.** El modelo de datos incluye tablas `rol` y `usuario`, pero ningún ruteador ni servicio de autenticación está declarado en design.md para la Unidad 2. El equipo debe decidir: (a) implementar login básico en Unidad 2, o (b) diferirlo a Unidad 3 y acceder al sistema sin autenticación en desarrollo. Esta decisión debe formalizarse en ADR-004.
 
-10. **Internacionalización y zona horaria en la interfaz.** La fecha/hora de tickets usa `America/Lima (UTC-5)` en el backend; no se define cómo se presenta al usuario ni si el frontend adapta el formato según configuración regional.
+---
+
+## Historial de cambios
+
+| Fecha | Hallazgo auditoría | Cambio realizado |
+|---|---|---|
+| 2026-10-02 | C1 — Faltaba C4 Nivel 1 | Agregada sección 2.0 con diagrama de Contexto del Sistema en Mermaid |
+| 2026-10-02 | C2 — Faltaba sección de interfaces/contratos | Agregada sección 5.2 con tabla de endpoints y contratos Pydantic |
+| 2026-10-02 | C3 — Modelo de datos sin enlace formal | Agregada sección 5.1 con referencias a `modelo_datos.md` y `schema.sql` |
+| 2026-10-02 | C4 — Vestigios conversacionales en sección 7 | Eliminados ítems sobre `session_id`, `ChatRequest`, orquestador y ChromaDB; sección renumerada como 8 |
+| 2026-10-02 | C10 — Cifra "~280 productos" sin fuente | Reemplazada por marca PENDIENTE con instrucción de verificación |
+| 2026-10-02 | C12 — `RepositorioUsuarios` en modelo sin componente en design | Agregada nota explicativa al pie de la tabla de componentes |

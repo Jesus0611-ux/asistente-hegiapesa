@@ -2,7 +2,7 @@
 
 ## Introduction
 
-HegiaStock es un asistente conversacional de consulta y verificación de inventario para Inversiones Hegiapesa S.A.C., empresa del sector retail ferretero, materiales de construcción y servicios afines. El sistema resuelve el descalce entre la información de inventario manejada en el mostrador y la existencia real de mercadería en almacén, eliminando las demoras en la atención al cliente y las ventas perdidas durante la verificación de producto. HegiaStock se integra con el servidor MCP de inventario existente (solo lectura), un motor RAG para consultas normativas y un módulo de registro de incidencias, todo ello sobre una pila Python 3.11+, FastAPI, SQLite y Gemini API, cumpliendo la Ley N.° 29733 de protección de datos personales.
+HegiaStock es un asistente web de consulta y verificación de inventario para Inversiones Hegiapesa S.A.C., empresa del sector retail ferretero, materiales de construcción y servicios afines. El sistema resuelve el descalce entre la información de inventario manejada en el mostrador y la existencia real de mercadería en almacén, eliminando las demoras en la atención al cliente y las ventas perdidas durante la verificación de producto. La **Unidad 2** entrega la funcionalidad core (consulta de stock, ubicación, categorías y registro de tickets) sobre la pila Python 3.11+, FastAPI, Jinja2 y SQLite 3, cumpliendo la Ley N.° 29733 de protección de datos personales. La integración con el Servidor MCP de inventario, el Motor RAG para consultas normativas y la Gemini API quedan diferidas a la **Unidad 3** (ver ADR-004).
 
 ## Glossary
 
@@ -14,7 +14,7 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 - **Nombre_Comercial**: Denominación textual de un producto tal como aparece en el catálogo (p. ej., «Cemento Sol 42.5 kg»).
 - **Producto**: Artículo del catálogo identificado por un SKU y un Nombre_Comercial, con cantidad disponible y ubicación física registradas.
 - **Categoría**: Agrupación lógica de Productos dentro del catálogo (p. ej., «Pinturas», «Clavos», «Conexiones PVC»).
-- **Servidor_MCP**: Servidor de inventario propio (semana 4), operado en modo exclusivo de solo lectura, que expone datos de stock, ubicación y catálogo de los ~280 registros iniciales.
+- **Servidor_MCP**: Servidor de inventario propio previsto para la Unidad 3, operado en modo exclusivo de solo lectura, que expondrá datos de stock, ubicación y catálogo. Cantidad de registros iniciales: **PENDIENTE — confirmar con área de logística de Hegiapesa S.A.C.** (ver ADR-004). En Unidad 2, estos datos se cargan directamente en `hegiastock.db`.
 - **Motor_RAG**: Motor de recuperación aumentada por generación (Retrieval-Augmented Generation) que indexa los documentos normativos internos (guías de procedimientos, políticas comerciales, manuales) en formato PDF o Markdown.
 - **Ticket_Verificacion**: Registro persistente en la base de datos SQLite que representa una solicitud formal de constatación física de un Producto con discrepancia de stock. Contiene identificador correlativo, SKU, estado y fecha de creación.
 - **Estado_Pendiente**: Estado inicial asignado a todo Ticket_Verificacion recién creado, indicando que la constatación física aún no ha sido realizada.
@@ -37,7 +37,9 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 3. CUANDO el Nombre_Comercial ingresado coincide con más de un Producto en el Servidor_MCP, EL Asistente SHALL presentar al Vendedor la lista de coincidencias (SKU y Nombre_Comercial de cada una) para que seleccione el Producto deseado antes de mostrar el stock.
 4. IF el SKU o Nombre_Comercial ingresado no existe en el catálogo del Servidor_MCP, THEN EL Asistente SHALL informar al Vendedor que el Producto no fue encontrado y sugerir revisar el código o la ortografía del nombre.
 5. WHILE el Servidor_MCP no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de inventario está temporalmente fuera de línea e indicar que reintente en un máximo de 30 segundos.
+   > **[PENDIENTE Unidad 3]** En Unidad 2 el catálogo vive en SQLite 3 local; este CA se activa cuando se integre el ClienteMCP (ver ADR-004).
 6. THE Asistente SHALL invocar el Servidor_MCP exclusivamente en modo de solo lectura para toda consulta de stock, sin emitir instrucciones de modificación de datos.
+   > **[PENDIENTE Unidad 3]** En Unidad 2 solo hay lecturas SELECT sobre SQLite; la guardia READ_ONLY_TOOLS del ClienteMCP se implementa en Unidad 3 (ver ADR-004).
 
 ---
 
@@ -47,12 +49,13 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 
 #### Criterios de Aceptación
 
-1. CUANDO el Vendedor solicita la ubicación de un Producto mediante SKU o Nombre_Comercial, EL Asistente SHALL devolver el número de Pasillo y el código de Estante registrados en el Servidor_MCP en un tiempo igual o inferior a 3 segundos contados desde el envío de la solicitud.
-2. CUANDO el Nombre_Comercial ingresado coincide con más de un Producto en el Servidor_MCP, EL Asistente SHALL presentar la lista de coincidencias (SKU y Nombre_Comercial) para que el Vendedor seleccione el Producto antes de devolver la ubicación.
-3. IF el Producto no tiene ubicación física asignada en el Servidor_MCP, THEN EL Asistente SHALL informar al Vendedor que la ubicación no está registrada para ese Producto.
+1. CUANDO el Vendedor solicita la ubicación de un Producto mediante SKU o Nombre_Comercial, EL Asistente SHALL devolver el número de Pasillo y el código de Estante registrados en la base de datos en un tiempo igual o inferior a 3 segundos contados desde el envío de la solicitud.
+2. CUANDO el Nombre_Comercial ingresado coincide con más de un Producto, EL Asistente SHALL presentar la lista de coincidencias (SKU y Nombre_Comercial) para que el Vendedor seleccione el Producto antes de devolver la ubicación.
+3. IF el Producto no tiene ubicación física asignada, THEN EL Asistente SHALL informar al Vendedor que la ubicación no está registrada para ese Producto.
 4. IF el SKU o Nombre_Comercial ingresado no existe en el catálogo, THEN EL Asistente SHALL informar al Vendedor que el Producto no fue encontrado en el catálogo de inventario.
 5. WHILE el Servidor_MCP no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de inventario está temporalmente fuera de línea e indicar que reintente más tarde.
-6. THE Asistente SHALL presentar la ubicación con el formato exacto «Pasillo {N}, Estante {código}» donde {N} es el número entero del pasillo y {código} es el identificador alfanumérico del estante registrado en el Servidor_MCP.
+   > **[PENDIENTE Unidad 3]** En Unidad 2 la fuente es SQLite 3 local; este CA se activa con el ClienteMCP (ver ADR-004).
+6. THE Asistente SHALL presentar la ubicación con el formato exacto «Pasillo {N}, Estante {código}» donde {N} es el número entero del pasillo y {código} es el identificador alfanumérico del estante.
 
 ---
 
@@ -62,26 +65,29 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 
 #### Criterios de Aceptación
 
-1. CUANDO el Vendedor solicita el listado de Productos de una Categoría válida, EL Asistente SHALL recuperar del Servidor_MCP hasta 10 Productos de esa Categoría que tengan cantidad disponible mayor a cero y mostrar, por cada uno, el SKU, el Nombre_Comercial y la cantidad disponible, ordenados de mayor a menor cantidad disponible, en un tiempo igual o inferior a 4 segundos.
+1. CUANDO el Vendedor solicita el listado de Productos de una Categoría válida, EL Asistente SHALL recuperar de la base de datos hasta 10 Productos de esa Categoría que tengan cantidad disponible mayor a cero y mostrar, por cada uno, el SKU, el Nombre_Comercial y la cantidad disponible, ordenados de mayor a menor cantidad disponible, en un tiempo igual o inferior a 4 segundos.
 2. CUANDO la Categoría contiene más de 10 Productos con stock disponible, EL Asistente SHALL mostrar los 10 Productos con mayor cantidad disponible e informar al Vendedor que existen más productos en esa categoría.
-3. IF la Categoría solicitada no existe en el catálogo del Servidor_MCP, THEN EL Asistente SHALL informar al Vendedor que la Categoría no fue encontrada y sugerir revisar el nombre de la categoría.
+3. IF la Categoría solicitada no existe en el catálogo, THEN EL Asistente SHALL informar al Vendedor que la Categoría no fue encontrada y sugerir revisar el nombre de la categoría.
 4. IF la Categoría existe pero ninguno de sus Productos tiene cantidad disponible mayor a cero, THEN EL Asistente SHALL informar al Vendedor que no hay existencias disponibles en esa Categoría en este momento.
 5. WHILE el Servidor_MCP no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de inventario está temporalmente fuera de línea e indicar que reintente más tarde.
-6. THE Asistente SHALL invocar el Servidor_MCP exclusivamente en modo de solo lectura para toda consulta de catálogo por Categoría.
+   > **[PENDIENTE Unidad 3]** En Unidad 2 la fuente es SQLite 3 local (ver ADR-004).
+6. THE Asistente SHALL invocar la fuente de datos exclusivamente en modo de solo lectura para toda consulta de catálogo por Categoría.
 
 ---
 
 ### Requisito 4: Consulta de Procedimiento ante Discrepancias de Stock
 
+> **[PENDIENTE Unidad 3 — HU04 completa]** Este requisito depende del Motor RAG. No se implementa en Unidad 2. Ver ADR-004.
+
 **Historia de usuario:** Como Vendedor, quiero consultar el procedimiento operativo interno cuando un Producto no coincide entre el registro del sistema y la presencia en pasillo, para aplicar la regla institucional correcta sin interrumpir a gerencia.
 
 #### Criterios de Aceptación
 
-1. CUANDO el Vendedor consulta sobre el procedimiento a seguir ante una Discrepancia_Stock, EL Asistente SHALL recuperar la respuesta del Motor_RAG y presentar al menos una guía numerada de pasos institucionales en un tiempo igual o inferior a 2 segundos contados desde el envío de la consulta.
-2. WHEN el Administrador carga o actualiza documentos normativos en el sistema, THE Motor_RAG SHALL indexar los nuevos documentos en formato PDF o Markdown para que el Asistente pueda recuperar procedimientos sobre Discrepancias_Stock.
-3. WHEN la respuesta sobre el procedimiento ante Discrepancia_Stock es generada, THE Asistente SHALL obtenerla exclusivamente del Motor_RAG sin realizar consultas al Servidor_MCP.
-4. IF el Motor_RAG no retorna resultados relacionados con el procedimiento consultado, THEN EL Asistente SHALL informar al Vendedor que no se encontró información normativa sobre esa consulta y recomendar consultar directamente con el Administrador.
-5. WHILE el Motor_RAG no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de consulta normativa está temporalmente fuera de línea e indicar que reintente más tarde.
+1. > **[PENDIENTE Unidad 3]** CUANDO el Vendedor consulta sobre el procedimiento a seguir ante una Discrepancia_Stock, EL Asistente SHALL recuperar la respuesta del Motor_RAG y presentar al menos una guía numerada de pasos institucionales en un tiempo igual o inferior a 2 segundos contados desde el envío de la consulta.
+2. > **[PENDIENTE Unidad 3]** WHEN el Administrador carga o actualiza documentos normativos en el sistema, THE Motor_RAG SHALL indexar los nuevos documentos en formato PDF o Markdown para que el Asistente pueda recuperar procedimientos sobre Discrepancias_Stock.
+3. > **[PENDIENTE Unidad 3]** WHEN la respuesta sobre el procedimiento ante Discrepancia_Stock es generada, THE Asistente SHALL obtenerla exclusivamente del Motor_RAG sin realizar consultas al Servidor_MCP.
+4. > **[PENDIENTE Unidad 3]** IF el Motor_RAG no retorna resultados relacionados con el procedimiento consultado, THEN EL Asistente SHALL informar al Vendedor que no se encontró información normativa sobre esa consulta y recomendar consultar directamente con el Administrador.
+5. > **[PENDIENTE Unidad 3]** WHILE el Motor_RAG no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de consulta normativa está temporalmente fuera de línea e indicar que reintente más tarde.
 
 ---
 
@@ -93,9 +99,10 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 
 1. CUANDO el Vendedor solicita registrar una verificación física indicando un SKU válido, EL Asistente SHALL crear un Ticket_Verificacion en la base de datos SQLite con un identificador correlativo único en formato «VER-NNN» (donde NNN es un número entero de tres o más dígitos que se incrementa de forma continua sin reiniciarse por día), el SKU referenciado, el estado «Pendiente» y la fecha y hora de creación en hora local (UTC-5 Lima).
 2. CUANDO el Ticket_Verificacion es creado exitosamente, EL Asistente SHALL confirmar al Vendedor la creación mostrando el identificador del ticket en formato «VER-NNN» y el estado «Pendiente» en tiempo igual o inferior a 3 segundos.
-3. IF el SKU ingresado para el registro de verificación no existe en el catálogo del Servidor_MCP, THEN EL Asistente SHALL rechazar la creación del Ticket_Verificacion e informar al Vendedor que el SKU no es válido.
+3. IF el SKU ingresado para el registro de verificación no existe en el catálogo de la base de datos, THEN EL Asistente SHALL rechazar la creación del Ticket_Verificacion e informar al Vendedor que el SKU no es válido.
 4. IF la escritura del Ticket_Verificacion en la base de datos SQLite falla, THEN EL Asistente SHALL informar al Vendedor que el ticket no pudo ser registrado e indicar que reintente o contacte al Administrador.
 5. WHILE el Servidor_MCP no está disponible al momento de validar el SKU, EL Asistente SHALL notificar al Vendedor que no es posible validar el SKU en este momento e indicar que reintente más tarde.
+   > **[PENDIENTE Unidad 3]** En Unidad 2 la validación de SKU se realiza contra SQLite 3 local; este CA aplica cuando se integre el ClienteMCP (ver ADR-004).
 6. THE Asistente SHALL garantizar que el identificador correlativo «VER-NNN» sea único dentro de toda la base de datos de tickets, sin duplicados.
 7. THE Asistente SHALL registrar en el Ticket_Verificacion exclusivamente el SKU del Producto y los metadatos del ticket (identificador, estado, fecha y hora), sin almacenar datos personales de clientes ni del Vendedor.
 
@@ -103,15 +110,17 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 
 ### Requisito 6: Consulta de Políticas Comerciales, de Devolución y Garantía
 
+> **[PENDIENTE Unidad 3 — HU06 completa]** Este requisito depende del Motor RAG. No se implementa en Unidad 2. Ver ADR-004.
+
 **Historia de usuario:** Como Vendedor, quiero consultar las políticas comerciales de devolución y garantía de mercadería, para responder con precisión las consultas de los clientes durante la venta sin interrumpir la atención.
 
 #### Criterios de Aceptación
 
-1. CUANDO el Vendedor consulta sobre políticas de devolución o garantía de un Producto o Categoría de mercadería, EL Asistente SHALL recuperar del Motor_RAG las cláusulas institucionales cuyo texto contenga términos relacionados con la consulta y presentar hasta 3 cláusulas relevantes en un tiempo igual o inferior a 2 segundos contados desde el envío de la consulta.
-2. WHEN el Administrador carga o actualiza el manual de políticas comerciales, THE Motor_RAG SHALL indexar el documento en formato PDF o Markdown para que el Asistente pueda recuperar cláusulas de devolución y garantía.
-3. WHEN la respuesta sobre políticas comerciales es generada, THE Asistente SHALL presentar al Vendedor el texto de las cláusulas recuperadas del Motor_RAG sin modificar su contenido, identificando el documento fuente.
-4. IF el Motor_RAG no retorna cláusulas relacionadas con la política consultada, THEN EL Asistente SHALL informar al Vendedor que no se encontró información sobre esa política y recomendar consultar directamente con el Administrador.
-5. WHILE el Motor_RAG no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de consulta de políticas está temporalmente fuera de línea e indicar que reintente más tarde.
+1. > **[PENDIENTE Unidad 3]** CUANDO el Vendedor consulta sobre políticas de devolución o garantía de un Producto o Categoría de mercadería, EL Asistente SHALL recuperar del Motor_RAG las cláusulas institucionales cuyo texto contenga términos relacionados con la consulta y presentar hasta 3 cláusulas relevantes en un tiempo igual o inferior a 2 segundos contados desde el envío de la consulta.
+2. > **[PENDIENTE Unidad 3]** WHEN el Administrador carga o actualiza el manual de políticas comerciales, THE Motor_RAG SHALL indexar el documento en formato PDF o Markdown para que el Asistente pueda recuperar cláusulas de devolución y garantía.
+3. > **[PENDIENTE Unidad 3]** WHEN la respuesta sobre políticas comerciales es generada, THE Asistente SHALL presentar al Vendedor el texto de las cláusulas recuperadas del Motor_RAG sin modificar su contenido, identificando el documento fuente.
+4. > **[PENDIENTE Unidad 3]** IF el Motor_RAG no retorna cláusulas relacionadas con la política consultada, THEN EL Asistente SHALL informar al Vendedor que no se encontró información sobre esa política y recomendar consultar directamente con el Administrador.
+5. > **[PENDIENTE Unidad 3]** WHILE el Motor_RAG no está disponible, EL Asistente SHALL notificar al Vendedor que el servicio de consulta de políticas está temporalmente fuera de línea e indicar que reintente más tarde.
 
 ---
 
@@ -130,14 +139,16 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 
 ### Requisito 8: Operación en Modo Solo Lectura del Servidor MCP
 
+> **[PENDIENTE Unidad 3 — HU08 completa]** Este requisito aplica al ClienteMCP que se implementa en Unidad 3. En Unidad 2 toda escritura prohibida es garantizada por SQLAlchemy (solo SELECT en repositorios de catálogo). Ver ADR-004.
+
 **Historia de usuario:** Como Administrador, quiero que toda comunicación con el Servidor_MCP sea estrictamente de solo lectura, para preservar la integridad del inventario y evitar modificaciones accidentales o no autorizadas.
 
 #### Criterios de Aceptación
 
-1. THE Servidor_MCP SHALL rechazar con un código de error cualquier instrucción de modificación de datos (equivalentes a INSERT, UPDATE o DELETE) proveniente del Asistente, sin ejecutar ningún cambio.
-2. THE Asistente SHALL invocar el Servidor_MCP únicamente mediante operaciones de consulta de solo lectura (equivalentes a SELECT) para todas las funcionalidades dentro del alcance declarado.
-3. IF el Asistente recibe una respuesta de error del Servidor_MCP indicando intento de escritura rechazado, THEN EL Asistente SHALL registrar el evento en el log del sistema incluyendo la operación intentada, la marca de tiempo y el código de error recibido, y notificar al Administrador.
-4. WHEN el Asistente construye una invocación al Servidor_MCP, THE Asistente SHALL validar que la operación es de solo lectura antes de enviarla, descartando cualquier invocación que contenga instrucciones de escritura.
+1. > **[PENDIENTE Unidad 3]** THE Servidor_MCP SHALL rechazar con un código de error cualquier instrucción de modificación de datos (equivalentes a INSERT, UPDATE o DELETE) proveniente del Asistente, sin ejecutar ningún cambio.
+2. > **[PENDIENTE Unidad 3]** THE Asistente SHALL invocar el Servidor_MCP únicamente mediante operaciones de consulta de solo lectura (equivalentes a SELECT) para todas las funcionalidades dentro del alcance declarado.
+3. > **[PENDIENTE Unidad 3]** IF el Asistente recibe una respuesta de error del Servidor_MCP indicando intento de escritura rechazado, THEN EL Asistente SHALL registrar el evento en el log del sistema incluyendo la operación intentada, la marca de tiempo y el código de error recibido, y notificar al Administrador.
+4. > **[PENDIENTE Unidad 3]** WHEN el Asistente construye una invocación al Servidor_MCP, THE Asistente SHALL validar que la operación es de solo lectura antes de enviarla, descartando cualquier invocación que contenga instrucciones de escritura.
 
 ---
 
@@ -147,7 +158,20 @@ HegiaStock es un asistente conversacional de consulta y verificación de inventa
 
 #### Criterios de Aceptación
 
-1. THE Asistente SHALL responder el 95% de las consultas de stock e inventario al Servidor_MCP en un tiempo igual o inferior a 3 segundos medido desde el envío de la solicitud hasta la presentación del resultado, en una ventana de medición de 100 transacciones consecutivas en condiciones normales de operación.
-2. THE Asistente SHALL responder el 95% de las consultas al Motor_RAG (procedimientos y políticas) en un tiempo igual o inferior a 2 segundos medido desde el envío de la solicitud hasta la presentación del resultado, en una ventana de medición de 100 transacciones consecutivas en condiciones normales de operación.
+1. THE Asistente SHALL responder el 95% de las consultas de stock e inventario en un tiempo igual o inferior a 3 segundos medido desde el envío de la solicitud hasta la presentación del resultado, en una ventana de medición de 100 transacciones consecutivas en condiciones normales de operación. *(En Unidad 2: consultas a SQLite 3.)*
+2. THE Asistente SHALL responder el 95% de las consultas al Motor_RAG (procedimientos y políticas) en un tiempo igual o inferior a 2 segundos.
+   > **[PENDIENTE Unidad 3]** Aplica cuando el Motor RAG esté implementado (ver ADR-004).
 3. IF una consulta al Servidor_MCP alcanza los 5 segundos sin respuesta, THEN EL Asistente SHALL cancelar la solicitud, notificar al Vendedor que la consulta excedió el tiempo máximo de espera e indicar que reintente.
+   > **[PENDIENTE Unidad 3]** Aplica cuando el ClienteMCP esté implementado (ver ADR-004).
 4. IF una consulta al Motor_RAG alcanza los 4 segundos sin respuesta, THEN EL Asistente SHALL cancelar la solicitud, notificar al Vendedor que la consulta normativa excedió el tiempo máximo de espera e indicar que reintente.
+   > **[PENDIENTE Unidad 3]** Aplica cuando el Motor RAG esté implementado (ver ADR-004).
+
+---
+
+## Historial de cambios
+
+| Fecha | Hallazgo auditoría | Cambio realizado |
+|---|---|---|
+| 2026-10-02 | C6 — CAs huérfanos sin componente en Unidad 2 | HU01 CA5/CA6, HU02 CA5, HU03 CA5, HU04 completa, HU05 CA5, HU06 completa, HU08 completa, HU09 CA2/CA3/CA4 marcados [PENDIENTE Unidad 3] con referencia a ADR-004 |
+| 2026-10-02 | C6 — Glosario: "~280 registros" sin fuente | Servidor_MCP redefinido con cantidad PENDIENTE de confirmar |
+| 2026-10-02 | C6 — Introducción acopla pila completa a Unidad 2 | Reescrita para separar pila Unidad 2 (FastAPI + SQLite) de Unidad 3 (MCP + RAG + Gemini) |
