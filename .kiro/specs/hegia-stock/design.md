@@ -3,13 +3,13 @@
 
 ---
 
-## 1. Visión General
+## Overview
 
 HegiaStock es una aplicación web de consulta y verificación de inventario para Inversiones Hegiapesa S.A.C. Permite al Vendedor de mostrador consultar stock disponible, ubicación física y categorías de productos, así como registrar solicitudes formales de verificación ante discrepancias. El sistema se construye como un monolito modular con renderizado en servidor (FastAPI + Jinja2), lee el catálogo de productos (cantidad exacta: **PENDIENTE — confirmar con el área de logística de Hegiapesa S.A.C.**) desde SQLite 3 (`hegiastock.db`) y persiste únicamente tickets de verificación en la misma base de datos. No almacena datos personales de clientes (Ley N.° 29733). El punto de extensión para el agente conversacional queda reservado para la Unidad 3 y no se implementa en esta fase.
 
 ---
 
-## 2. Diagramas de Arquitectura
+## Architecture
 
 ### 2.0 Diagrama C4 Nivel 1 — Contexto del Sistema
 
@@ -218,7 +218,9 @@ flowchart TB
 
 ---
 
-## 5. Tabla de Componentes
+## Components and Interfaces
+
+### Tabla de Componentes
 
 | Componente | Responsabilidad (una línea) | Carpeta | Historias que satisface |
 |---|---|---|---|
@@ -245,7 +247,9 @@ flowchart TB
 
 ---
 
-## 5.1 Modelo de Datos
+## Data Models
+
+### Modelo de Datos
 
 El modelo de datos completo (diagrama ER, tabla de trazabilidad entidad→componente→historia y análisis de protección de datos Ley N.° 29733) se encuentra en:
 
@@ -316,6 +320,80 @@ Las siguientes decisiones quedan diferidas al diseño detallado o a fases poster
 
 ---
 
+## Correctness Properties
+
+Las siguientes propiedades deben mantenerse invariantes en toda la aplicación durante la Unidad 2:
+
+1. **Sin datos personales de clientes (Ley N.° 29733):** ninguna tabla de la base de datos, ningún log de auditoría y ninguna respuesta HTTP contienen DNI, nombre completo, teléfono, dirección ni datos de pago de clientes finales. Verificado por `FiltroPDP` antes de cada `INSERT` en `ticket_verificacion` y `audit_log`.
+
+2. **Unicidad del correlativo VER-NNN:** el campo `numero_correlativo` de la tabla `ticket_verificacion` tiene restricción `UNIQUE`. `ServicioTickets` usa `BEGIN IMMEDIATE` para obtener `MAX(numero_correlativo) + 1` de forma atómica; no puede existir dos tickets con el mismo correlativo.
+
+3. **Solo lectura del catálogo en Unidad 2:** los repositorios `RepositorioStock`, `RepositorioUbicacion` y `RepositorioCategoria` emiten únicamente sentencias `SELECT`. Ninguna ruta de catálogo expone un endpoint `POST`/`PUT`/`DELETE`.
+
+4. **Stock no negativo:** la columna `cantidad_disponible` tiene `CHECK (cantidad_disponible >= 0)` en el DDL. `ServicioCategoria` filtra adicionalmente `cantidad_disponible > 0` antes de mostrar resultados.
+
+5. **Formato de ticket válido:** todo `ticket_id` devuelto por `ServicioTickets` debe coincidir con la expresión regular `^VER-\d{3,}$`. Validado por el schema Pydantic `TicketResponse`.
+
+6. **Respuesta en tiempo acotado:** `RuteadorSalud` (`GET /health`) verifica que SQLite responda antes de devolver `200 OK`. Si la base de datos no está disponible, todos los endpoints devuelven `503` con mensaje legible en lugar de una excepción sin manejar.
+
+---
+
+## Error Handling
+
+Estrategia de manejo de errores por capa:
+
+| Capa | Situación | Comportamiento esperado | Código HTTP |
+|---|---|---|---|
+| **RuteadorStock** | `q` vacío o ausente | Redirige al formulario con mensaje de validación | `400` |
+| **RuteadorStock** | Producto no encontrado | Renderiza `stock.html` con bloque `{% if error %}` | `404` |
+| **RuteadorUbicacion** | SKU sin ubicación asignada | Renderiza `ubicacion.html` con aviso "sin ubicación registrada" | `404` |
+| **RuteadorCategoria** | Categoría inexistente | Renderiza `categoria.html` con aviso "categoría no encontrada" | `404` |
+| **RuteadorCategoria** | Categoría existe pero sin stock | Renderiza `categoria.html` con aviso "sin existencias disponibles" | `200` |
+| **RuteadorTickets POST** | SKU inválido (no en catálogo) | Renderiza formulario con mensaje de error; no crea ticket | `400` |
+| **RuteadorTickets POST** | Fallo de escritura en SQLite | Renderiza formulario con aviso "no se pudo registrar; reintente" | `503` |
+| **Cualquier ruteador** | SQLite no disponible | Renderiza página de error genérica con aviso y botón de reintento | `503` |
+| **Validación Pydantic** | Parámetro fuera de rango o tipo incorrecto | FastAPI devuelve respuesta de error de validación automática | `422` |
+| **FiltroPDP** | Campo inesperado con patrón PDP detectado | Lanza `PDPViolationError`; la operación se cancela; evento queda en `audit_log` sanitizado | — |
+
+**Principios generales:**
+- Ninguna excepción interna (traceback de Python) llega al navegador del Vendedor. FastAPI registra el error internamente y devuelve una plantilla de error amigable.
+- Los mensajes de error visibles al Vendedor no exponen rutas internas, versiones de librerías ni consultas SQL.
+- Todos los eventos de error se registran en `audit_log` con `FiltroPDP.sanitizar_para_log()` aplicado al detalle.
+
+---
+
+## Testing Strategy
+
+Niveles de prueba para la Unidad 2:
+
+### Pruebas unitarias (`backend/tests/unit/`)
+- **RepositorioStock / ServicioStock:** consulta por SKU exacto, búsqueda LIKE por nombre, resultado vacío, múltiples coincidencias. Base de datos SQLite en memoria (`":memory:"`).
+- **RepositorioUbicacion / ServicioUbicacion:** producto con ubicación, producto sin ubicación, formato «Pasillo N, Estante X».
+- **RepositorioCategoria / ServicioCategoria:** filtro `stock > 0`, orden descendente, límite 10, categoría vacía, categoría inexistente.
+- **ServicioTickets / RepositorioTickets:** creación exitosa (formato `VER-001`), SKU inválido rechazado, fallo de BD propagado, correlativo único bajo llamadas concurrentes (`asyncio.gather`).
+- **FiltroPDP:** `sanitizar_para_log` detecta DNI, RUC, teléfono, email y tarjeta; `validar_ticket_sin_pdp` acepta solo las claves permitidas.
+
+### Pruebas de integración (`backend/tests/integration/`)
+- Flujo completo `GET /stock?q=...` → respuesta HTML con datos reales de `hegiastock.db` (requiere `database/seed.sql` — **PENDIENTE del equipo**).
+- Flujo completo `POST /tickets` → redirección `303` → `GET /tickets/{id}` → ticket en estado Pendiente.
+- `GET /health` → `200 JSON {"sqlite": "ok"}` con base de datos activa; `503` con base de datos renombrada.
+
+### Ejecución
+```bash
+# Unitarias (sin servidor ni red):
+pytest backend/tests/unit/ -v --tb=short
+
+# Integración (requiere hegiastock.db poblada):
+pytest backend/tests/integration/ -v --tb=short -m integration
+```
+
+### Lo que no se prueba en Unidad 2
+- Rendimiento bajo carga (p95 ≤ 3 s contra MCP): diferido a Unidad 3 (ver tasks.md sección [UNIDAD 3]).
+- Motor RAG y Gemini API: diferidos a Unidad 3.
+- Pruebas de propiedad con Hypothesis: opcionales; ver tareas marcadas `*` en tasks.md.
+
+---
+
 ## Historial de cambios
 
 | Fecha | Hallazgo auditoría | Cambio realizado |
@@ -326,3 +404,4 @@ Las siguientes decisiones quedan diferidas al diseño detallado o a fases poster
 | 2026-10-02 | C4 — Vestigios conversacionales en sección 7 | Eliminados ítems sobre `session_id`, `ChatRequest`, orquestador y ChromaDB; sección renumerada como 8 |
 | 2026-10-02 | C10 — Cifra "~280 productos" sin fuente | Reemplazada por marca PENDIENTE con instrucción de verificación |
 | 2026-10-02 | C12 — `RepositorioUsuarios` en modelo sin componente en design | Agregada nota explicativa al pie de la tabla de componentes |
+| 2026-10-02 | Validador Kiro — 7 secciones faltantes | Renombradas secciones al inglés requerido (Overview, Architecture, Components and Interfaces, Data Models); agregadas secciones Correctness Properties, Error Handling y Testing Strategy |
