@@ -1,0 +1,218 @@
+<!DOCTYPE html><html lang="es"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HegiaStock — Wireframe v1</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font:15px Arial,sans-serif;background:#f0f0f0;color:#111}
+a{color:inherit;text-decoration:none}
+.screen{min-height:100vh;display:flex;flex-direction:column;background:#f5f5f5}
+.screen+.screen{border-top:4px solid #888}
+.topbar{background:#333;color:#fff;padding:9px 20px;display:flex;align-items:center;justify-content:space-between}
+.topbar .logo{font-size:17px;font-weight:bold;letter-spacing:1px}
+.topbar nav a{color:#ddd;margin-left:14px;font-size:13px}
+.topbar nav a:hover{text-decoration:underline}
+.role{font-size:11px;border:1px solid #aaa;padding:2px 7px}
+.main{flex:1;padding:24px 30px;max-width:860px;width:100%;margin:0 auto}
+h1{font-size:19px;margin-bottom:4px}
+.sub{font-size:12px;color:#666;margin-bottom:18px}
+.hu{display:inline-block;font-size:10px;font-weight:bold;border:1px dashed #888;
+    padding:1px 5px;color:#555;margin-left:6px;vertical-align:middle}
+.blk{border:1px solid #bbb;background:#fff;padding:14px 18px;margin-bottom:16px}
+.blk-t{font-size:11px;font-weight:bold;text-transform:uppercase;color:#777;
+        margin-bottom:9px;letter-spacing:.5px}
+.row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap}
+.fld{display:flex;flex-direction:column;gap:4px;flex:1;min-width:150px}
+label{font-size:12px;color:#555}
+input,select{border:1px solid #aaa;padding:7px 9px;font-size:13px;background:#fafafa;width:100%}
+.btn{border:2px solid #333;background:#333;color:#fff;padding:7px 18px;font-size:13px;cursor:pointer}
+.btn-o{border:2px solid #333;background:#fff;color:#333;padding:7px 18px;font-size:13px;cursor:pointer}
+.btn:hover{background:#555;border-color:#555}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.card{border:1px solid #bbb;background:#eee;padding:14px 10px;text-align:center}
+.card .ic{font-size:26px;display:block;margin-bottom:5px}
+.card .lb{font-size:13px;font-weight:bold}
+.card .ds{font-size:11px;color:#666;margin-top:3px}
+.agent{border:2px dashed #aaa;background:#f9f9f9;padding:16px;text-align:center;color:#888;margin-bottom:16px}
+.agent .al{font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px}
+.agent .ad{font-size:12px}
+table{width:100%;border-collapse:collapse}
+th{background:#ddd;padding:8px 11px;font-size:12px;text-align:left;border:1px solid #bbb}
+td{padding:8px 11px;font-size:13px;border:1px solid #ddd}
+tr:nth-child(even) td{background:#f9f9f9}
+.ok{display:inline-block;padding:1px 7px;font-size:11px;font-weight:bold;border:1px solid #555;background:#ddd}
+.zr{display:inline-block;padding:1px 7px;font-size:11px;font-weight:bold;border:1px solid #999;background:#f2f2f2;color:#666}
+.msg{padding:10px 14px;border:1px dashed #999;background:#eee;font-size:13px;color:#444;margin-bottom:12px}
+footer{background:#333;color:#aaa;font-size:11px;text-align:center;padding:7px}
+.nav-fix{position:fixed;bottom:14px;right:14px;display:flex;flex-direction:column;gap:5px;z-index:99}
+.nav-fix a{background:#333;color:#fff;padding:6px 12px;font-size:12px;text-align:center}
+.nav-fix a:hover{background:#555}
+</style></head><body>
+
+<!-- ══════════════ PANTALLA 1 — INICIO ══════════════ -->
+<section class="screen" id="p1">
+<div class="topbar">
+  <span class="logo">HegiaStock</span>
+  <nav><a href="#p1">Inicio</a><a href="#p2">Consultar Stock</a><a href="#">Tickets</a></nav>
+  <span class="role">👤 Vendedor · turno mañana</span>
+</div>
+<div class="main">
+  <h1>Panel de consulta <span class="hu">HU01 HU02 HU03</span></h1>
+  <p class="sub">Busca un producto, consulta su ubicación o filtra por categoría.</p>
+
+  <div class="blk">
+    <div class="blk-t">Buscar producto <span class="hu">HU01</span><span class="hu">HU02</span></div>
+    <div class="row">
+      <div class="fld"><label>SKU o Nombre Comercial</label>
+        <input type="text" placeholder="Ej: CEM-001 · Cemento Sol 42.5 kg"></div>
+      <a class="btn" href="#p2">Consultar</a>
+    </div>
+    <p style="font-size:11px;color:#888;margin-top:7px">Ingrese código SKU exacto o parte del nombre comercial.</p>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t">Accesos rápidos</div>
+    <div class="grid3">
+      <div class="card"><span class="ic">📦</span><span class="lb">Consultar Stock</span>
+        <span class="ds">Por SKU o nombre <span class="hu">HU01</span></span></div>
+      <div class="card"><span class="ic">📍</span><span class="lb">Ver Ubicación</span>
+        <span class="ds">Pasillo y estante <span class="hu">HU02</span></span></div>
+      <div class="card"><span class="ic">🗂️</span><span class="lb">Filtrar Categoría</span>
+        <span class="ds">Listar con stock <span class="hu">HU03</span></span></div>
+      <div class="card"><span class="ic">⚠️</span><span class="lb">Nuevo Ticket</span>
+        <span class="ds">Verificación física <span class="hu">HU05</span></span></div>
+      <div class="card"><span class="ic">📋</span><span class="lb">Mis Tickets</span>
+        <span class="ds">Historial VER-NNN <span class="hu">HU05</span></span></div>
+      <div class="agent" style="margin-bottom:0">
+        <div class="al">Asistente <span class="hu">Unidad 3</span></div>
+        <div class="ad">[ Reservado — no implementado en Unidad 2 ]</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="blk">
+    <div class="blk-t">Tickets recientes <span class="hu">HU05</span></div>
+    <table><thead><tr><th>ID Ticket</th><th>SKU</th><th>Estado</th><th>Creado</th></tr></thead>
+    <tbody>
+      <tr><td>VER-003</td><td>CEM-001</td><td><span class="ok">Pendiente</span></td><td>2026-10-02 09:14</td></tr>
+      <tr><td>VER-002</td><td>PIN-045</td><td><span class="ok">Pendiente</span></td><td>2026-10-01 16:52</td></tr>
+    </tbody></table>
+  </div>
+</div>
+<footer>HegiaStock · Inversiones Hegiapesa S.A.C. · Wireframe v1</footer>
+</section>
+
+<!-- ══════════════ PANTALLA 2 — STOCK HU01 ══════════════ -->
+<section class="screen" id="p2">
+<div class="topbar">
+  <span class="logo">HegiaStock</span>
+  <nav><a href="#p1">Inicio</a><a href="#p2">Consultar Stock</a><a href="#">Tickets</a></nav>
+  <span class="role">👤 Vendedor · turno mañana</span>
+</div>
+<div class="main">
+  <h1>Resultado de consulta de stock <span class="hu">HU01</span></h1>
+  <p class="sub">Resultados para: <strong>"cemento sol"</strong></p>
+
+  <div class="blk">
+    <div class="blk-t">Nueva búsqueda <span class="hu">HU01</span><span class="hu">HU02</span></div>
+    <div class="row">
+      <div class="fld"><label>SKU o Nombre Comercial</label>
+        <input type="text" value="cemento sol"></div>
+      <div class="fld" style="max-width:170px"><label>Buscar por</label>
+        <select><option>SKU o Nombre</option><option>Solo SKU</option><option>Solo Nombre</option></select></div>
+      <button class="btn">Buscar</button>
+      <button class="btn-o">Limpiar</button>
+    </div>
+  </div>
+
+  <!-- Resultado único HU01 CA1/CA2 -->
+  <div class="blk">
+    <div class="blk-t">Detalle del producto <span class="hu">HU01 CA1</span></div>
+    <table><thead><tr><th>SKU</th><th>Nombre Comercial</th><th>Categoría</th><th>Cantidad</th><th>Unidad</th></tr></thead>
+    <tbody><tr><td><strong>CEM-001</strong></td><td>Cemento Sol 42.5 kg</td>
+      <td>Mat. construcción</td><td><span class="ok">48</span></td><td>bolsa</td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- Ubicación física HU02 -->
+  <div class="blk">
+    <div class="blk-t">Ubicación física <span class="hu">HU02</span></div>
+    <div style="display:flex;gap:28px;font-size:14px;padding:4px 0">
+      <div><strong>Pasillo:</strong> &nbsp;3</div>
+      <div><strong>Estante:</strong> &nbsp;B-04</div>
+      <div style="color:#888;font-size:12px">Almacén principal · planta baja</div>
+    </div>
+  </div>
+
+  <!-- Múltiples coincidencias HU01 CA3 -->
+  <div class="blk">
+    <div class="blk-t">Múltiples coincidencias — seleccione el producto <span class="hu">HU01 CA3</span></div>
+    <div class="msg">ℹ️ Se encontraron <strong>3 productos</strong> que coinciden. Seleccione el que desea consultar:</div>
+    <table><thead><tr><th>SKU</th><th>Nombre Comercial</th><th>Stock</th><th>Acción</th></tr></thead>
+    <tbody>
+      <tr><td>CEM-001</td><td>Cemento Sol 42.5 kg</td><td><span class="ok">48</span></td><td><a href="#" style="font-size:12px;text-decoration:underline">Ver detalle</a></td></tr>
+      <tr><td>CEM-002</td><td>Cemento Sol 25 kg</td><td><span class="ok">12</span></td><td><a href="#" style="font-size:12px;text-decoration:underline">Ver detalle</a></td></tr>
+      <tr><td>CEM-003</td><td>Cemento Sol Blanco 42.5 kg</td><td><span class="zr">0</span></td><td><a href="#" style="font-size:12px;text-decoration:underline">Ver detalle</a></td></tr>
+    </tbody></table>
+  </div>
+
+  <!-- No encontrado HU01 CA4 -->
+  <div class="blk">
+    <div class="blk-t">Producto no encontrado <span class="hu">HU01 CA4</span></div>
+    <div class="msg">⚠️ No se encontró ningún producto. Revise el código o la ortografía del nombre.</div>
+  </div>
+
+  <!-- Acciones HU05 -->
+  <div class="blk">
+    <div class="blk-t">Acciones disponibles <span class="hu">HU05</span></div>
+    <div class="row">
+      <button class="btn">Registrar ticket de verificación (VER-NNN)</button>
+      <a href="#p1" class="btn-o">← Volver al inicio</a>
+    </div>
+    <p style="font-size:11px;color:#888;margin-top:8px">Use "Registrar ticket" si la cantidad en sistema no coincide con el almacén físico.</p>
+  </div>
+
+  <!-- Espacio reservado Unidad 3 -->
+  <div class="agent">
+    <div class="al">Asistente <span class="hu">Unidad 3</span></div>
+    <div class="ad">[ Reservado para el agente conversacional — no implementado en Unidad 2 ]<br>
+    <span style="font-size:11px">El agente recibirá el contexto del producto consultado para responder preguntas en lenguaje natural.</span></div>
+  </div>
+</div>
+<footer>HegiaStock · Inversiones Hegiapesa S.A.C. · Wireframe v1</footer>
+</section>
+
+<div class="nav-fix"><a href="#p1">① Inicio</a><a href="#p2">② Stock HU01</a></div>
+
+<!--
+HISTORIAS NO CUBIERTAS Y JUSTIFICACIÓN
+──────────────────────────────────────
+HU03 — Filtro por Categoría
+  Aparece solo como acceso rápido. Requiere pantalla propia con selector de
+  categoría, tabla de hasta 10 resultados ordenados por cantidad_disponible
+  y mensaje "sin existencias". Se cubre en wireframe_v2.
+
+HU04 — Procedimiento ante Discrepancias (RAG)
+  Excluida: depende del Motor RAG, fuera de la frontera de Unidad 2.
+  Se reserva junto al espacio "Asistente (Unidad 3)".
+
+HU06 — Políticas Comerciales de Devolución y Garantía (RAG)
+  Excluida por la misma razón que HU04 (Motor RAG → Unidad 3).
+
+HU07 — Protección de Datos (Ley N.° 29733)
+  Requisito transversal sin pantalla propia. Se refleja en la ausencia
+  de campos de PDP en todos los formularios.
+
+HU08 — Solo Lectura del Servidor MCP
+  Requisito no funcional de arquitectura. Sin pantalla asociada.
+
+HU09 — Rendimiento
+  Requisito no funcional validado con pruebas de integración (p95 ≤ 3 s).
+
+HALLAZGO DE COMPONENTE FALTANTE (comparación con C4 N3):
+  La tabla de resultados muestra "Categoría" del producto (columna visible).
+  RepositorioStock hace SELECT solo sobre `producto`; para resolver el
+  nombre de categoría necesita un JOIN con la tabla `categoria`.
+  ServicioStock no declara ese JOIN en su contrato de retorno actual.
+  → Hallazgo: ServicioStock debe incluir nombre_categoria en ProductoDetalle.
+-->
+</body></html>
