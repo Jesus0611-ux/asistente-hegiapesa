@@ -1,4 +1,5 @@
 <?php
+// Historia: H-02
 
 namespace App\Models;
 
