@@ -5,6 +5,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 class Producto extends Model
 {
@@ -39,5 +40,10 @@ class Producto extends Model
     public function unidadMedida(): BelongsTo
     {
         return $this->belongsTo(UnidadMedida::class, 'id_unidad', 'id_unidad');
+    }
+
+    public function ubicacion(): HasOne
+    {
+    return $this->hasOne(Ubicacion::class, 'id_producto');
     }
 }
