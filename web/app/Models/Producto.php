@@ -1,5 +1,5 @@
 <?php
-// Historia: H-01
+// Historia: H-01, H-02
 
 namespace App\Models;
 
