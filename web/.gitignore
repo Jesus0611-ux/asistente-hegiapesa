@@ -22,3 +22,8 @@
 Homestead.json
 Homestead.yaml
 Thumbs.db
+# Agente conversacional IA
+agente/.env
+agente/.venv/
+agente/__pycache__/
+*.pyc

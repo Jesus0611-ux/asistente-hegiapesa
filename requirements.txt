@@ -1,0 +1,27 @@
+# =============================================================================
+# HegiaStock - Dependencias fijadas para Unidad 2
+# Referencia: .kiro/specs/hegia-stock/tasks.md (Tarea 1) y ADR-004
+# Monolito modular SSR: FastAPI + Jinja2 + SQLite
+# Sin componentes de IA generativa, MCP ni RAG (ADR-004)
+# =============================================================================
+
+# Framework web y servidor ASGI
+fastapi[standard]>=0.115.0,<0.116.0
+uvicorn[standard]>=0.32.0,<0.33.0
+
+# Base de datos y ORM
+sqlalchemy>=2.0.0,<2.1.0
+
+# Validacion de esquemas y modelos de datos
+pydantic>=2.10.0,<2.11.0
+
+# Motor de plantillas SSR
+jinja2>=3.1.0,<3.2.0
+
+# Gestion de variables de entorno
+python-dotenv>=1.0.0,<1.1.0
+
+# Dependencias para pruebas unitarias e integracion
+pytest>=8.0.0,<9.0.0
+pytest-asyncio>=0.24.0,<0.25.0
+httpx>=0.27.0,<0.28.0
