@@ -22,28 +22,39 @@ class AsistenteController extends Controller
         }
 
         try {
+
             $respuesta = Http::connectTimeout(5)
                 ->timeout(60)
                 ->post('http://127.0.0.1:8001/chat', [
                     'sesion' => $request->session()
                         ->get('asistente_sesion'),
+
                     'mensaje' => $datos['mensaje'],
                 ]);
 
             if (!$respuesta->successful()) {
                 return response()->json([
-                    'respuesta' => 'El asistente no esta disponible.'
+                    'respuesta' => 'El asistente no está disponible.',
+                    'datos' => [],
                 ], 503);
             }
 
             return response()->json([
                 'respuesta' => $respuesta->json('respuesta')
-                    ?? 'No se pudo obtener una respuesta.'
+                    ?? 'No se pudo obtener una respuesta.',
+
+                'datos' => $respuesta->json('datos') ?? [],
             ]);
 
         } catch (\Exception $e) {
+
+            \Log::error(
+                'Error en HegiaBot: ' . $e->getMessage()
+            );
+
             return response()->json([
-                'respuesta' => 'No se pudo conectar con el asistente IA.'
+                'respuesta' => 'No se pudo conectar con el asistente IA.',
+                'datos' => [],
             ], 503);
         }
     }

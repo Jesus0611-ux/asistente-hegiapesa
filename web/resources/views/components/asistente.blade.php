@@ -1,3 +1,172 @@
+<style>
+    /* TARJETAS DE INFORMACION DE HEGIABOT */
+
+    .hb-data-panel {
+        margin-top: 12px;
+        display: grid;
+        gap: 10px;
+        width: 100%;
+    }
+
+    .hb-data-card {
+        background: #ffffff;
+        border: 1px solid #dce5ef;
+        border-radius: 13px;
+        padding: 12px;
+        box-shadow: 0 3px 10px #15365e09;
+    }
+
+    .hb-data-card h4 {
+        margin: 0 0 9px;
+        font-size: 12px;
+        color: #15365e;
+    }
+
+    .hb-product-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    .hb-product-name {
+        font-weight: 700;
+        font-size: 13px;
+        color: #15365e;
+    }
+
+    .hb-product-sku {
+        font-size: 10px;
+        color: #8492a6;
+        margin-top: 3px;
+    }
+
+    .hb-product-stock {
+        font-size: 22px;
+        font-weight: 800;
+        color: #2563a8;
+        margin: 10px 0;
+    }
+
+    .hb-data-status {
+        display: inline-block;
+        padding: 4px 9px;
+        border-radius: 20px;
+        font-size: 10px;
+        font-weight: 700;
+    }
+
+    .hb-status-ok {
+        color: #047857;
+        background: #d1fae5;
+    }
+
+    .hb-status-low {
+        color: #92400e;
+        background: #fef3c7;
+    }
+
+    .hb-status-empty {
+        color: #b91c1c;
+        background: #fee2e2;
+    }
+
+    .hb-product-location {
+        border-top: 1px solid #e8eef5;
+        margin-top: 10px;
+        padding-top: 9px;
+        font-size: 11px;
+        color: #52657c;
+    }
+
+    .hb-stat-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .hb-stat-item {
+        background: #f5f8fc;
+        border: 1px solid #e5edf6;
+        border-radius: 10px;
+        padding: 10px;
+    }
+
+    .hb-stat-value {
+        font-size: 21px;
+        font-weight: 800;
+        color: #15365e;
+    }
+
+    .hb-stat-label {
+        font-size: 10px;
+        color: #64748b;
+    }
+
+    .hb-category-list {
+        display: grid;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .hb-category-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11px;
+        color: #475569;
+    }
+
+    .hb-category-track {
+        height: 7px;
+        background: #e8eef5;
+        border-radius: 10px;
+        overflow: hidden;
+        margin-top: 5px;
+    }
+
+    .hb-category-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #2563a8, #60a5fa);
+        border-radius: 10px;
+    }
+
+    .hb-alert-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 9px 0;
+        border-bottom: 1px solid #edf1f6;
+    }
+
+    .hb-alert-row:last-child {
+        border-bottom: 0;
+    }
+
+    .hb-alert-name {
+        font-size: 11px;
+        font-weight: 700;
+        color: #334155;
+    }
+
+    .hb-alert-sku {
+        font-size: 10px;
+        color: #8492a6;
+    }
+
+    .hb-alert-count {
+        font-size: 10px;
+        font-weight: 700;
+        white-space: nowrap;
+    }
+
+    @media (max-width: 500px) {
+        .hb-stat-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+    }
+    </style>
 
 <style>
     #hegia-widget {
@@ -724,6 +893,256 @@
             });
     }
 
+    // ------------------------------------------------
+    // FUNCIONES PARA PRESENTAR DATOS REALES DE MCP
+    // ------------------------------------------------
+
+    function obtenerFilasMCP(datos) {
+        const filas = [];
+
+        (Array.isArray(datos) ? datos : []).forEach(item => {
+            const resultado = item.resultado;
+
+            if (Array.isArray(resultado)) {
+                filas.push(...resultado);
+            } else if (resultado && Array.isArray(resultado.result)) {
+                filas.push(...resultado.result);
+            } else if (resultado && typeof resultado === 'object') {
+                filas.push(resultado);
+            }
+        });
+
+        return filas;
+    }
+
+    function crearElemento(etiqueta, clase, texto) {
+        const elemento = document.createElement(etiqueta);
+
+        if (clase) elemento.className = clase;
+        if (texto !== undefined) elemento.textContent = texto;
+
+        return elemento;
+    }
+
+    function agregarTarjetaProducto(contenedor, producto, ubicacion) {
+        const tarjeta = crearElemento('div', 'hb-data-card');
+
+        const cabecera = crearElemento('div', 'hb-product-head');
+        const informacion = crearElemento('div');
+
+        informacion.appendChild(
+            crearElemento('div', 'hb-product-name',
+                producto.nombre_comercial || producto.nombre || 'Producto')
+        );
+
+        informacion.appendChild(
+            crearElemento('div', 'hb-product-sku',
+                'SKU: ' + (producto.sku || 'No disponible'))
+        );
+
+        cabecera.appendChild(informacion);
+        tarjeta.appendChild(cabecera);
+
+        const stock = Number(
+            producto.stock ?? producto.cantidad_disponible ?? 0
+        );
+
+        tarjeta.appendChild(
+            crearElemento('div', 'hb-product-stock',
+                Number.isFinite(stock) ? stock + ' unidades' : 'No disponible')
+        );
+
+        let claseEstado = 'hb-status-ok';
+        let estado = 'Disponible';
+
+        if (stock === 0) {
+            claseEstado = 'hb-status-empty';
+            estado = 'Agotado';
+        } else if (stock <= 5) {
+            claseEstado = 'hb-status-low';
+            estado = 'Stock bajo';
+        }
+
+        tarjeta.appendChild(
+            crearElemento('span', 'hb-data-status ' + claseEstado, estado)
+        );
+
+        if (ubicacion) {
+            const pasillo = ubicacion.numero_pasillo ?? 'No disponible';
+            const estante = ubicacion.codigo_estante ?? 'No disponible';
+
+            tarjeta.appendChild(
+                crearElemento(
+                    'div',
+                    'hb-product-location',
+                    'Ubicación: Pasillo ' + pasillo + ' · Estante ' + estante
+                )
+            );
+        }
+
+        contenedor.appendChild(tarjeta);
+    }
+
+    function mostrarTarjetasProductos(contenedor, filas, tipo) {
+        const productos = filas.filter(fila =>
+            fila && (
+                fila.sku ||
+                fila.nombre_comercial ||
+                fila.nombre
+            )
+        );
+
+        if (!productos.length) return;
+
+        const panel = crearElemento('div', 'hb-data-panel');
+
+        productos.forEach(producto => {
+            const ubicacion = filas.find(fila =>
+                fila !== producto &&
+                (
+                    fila.numero_pasillo !== undefined ||
+                    fila.codigo_estante !== undefined
+                )
+            );
+
+            agregarTarjetaProducto(panel, producto, ubicacion);
+        });
+
+        contenedor.appendChild(panel);
+    }
+
+    function mostrarEstadisticas(contenedor, filas) {
+        const resumen = filas.find(fila =>
+            fila.total_productos !== undefined
+        );
+
+        if (!resumen) return;
+
+        const panel = crearElemento('div', 'hb-data-panel');
+        const tarjeta = crearElemento('div', 'hb-data-card');
+
+        tarjeta.appendChild(
+            crearElemento('h4', '', 'Resumen del inventario')
+        );
+
+        const indicadores = [
+            ['total_productos', 'Productos'],
+            ['productos_activos', 'Activos'],
+            ['disponibles', 'Disponibles'],
+            ['agotados', 'Agotados'],
+            ['stock_bajo', 'Stock bajo']
+        ];
+
+        const cuadrilla = crearElemento('div', 'hb-stat-grid');
+
+        indicadores.forEach(([clave, etiqueta]) => {
+            if (resumen[clave] === undefined) return;
+
+            const item = crearElemento('div', 'hb-stat-item');
+
+            item.appendChild(
+                crearElemento('div', 'hb-stat-value',
+                    String(resumen[clave]))
+            );
+
+            item.appendChild(
+                crearElemento('div', 'hb-stat-label', etiqueta)
+            );
+
+            cuadrilla.appendChild(item);
+        });
+
+        tarjeta.appendChild(cuadrilla);
+        panel.appendChild(tarjeta);
+        contenedor.appendChild(panel);
+    }
+
+    function mostrarAlertas(contenedor, filas) {
+        const productos = filas.filter(fila =>
+            fila &&
+            (fila.sku || fila.nombre_comercial) &&
+            (
+                fila.stock !== undefined ||
+                fila.cantidad_disponible !== undefined
+            )
+        );
+
+        if (!productos.length) return;
+
+        const panel = crearElemento('div', 'hb-data-panel');
+        const tarjeta = crearElemento('div', 'hb-data-card');
+
+        tarjeta.appendChild(
+            crearElemento('h4', '', 'Alertas de inventario')
+        );
+
+        productos.forEach(producto => {
+            const stock = Number(
+                producto.stock ?? producto.cantidad_disponible
+            );
+
+            const fila = crearElemento('div', 'hb-alert-row');
+            const informacion = crearElemento('div');
+
+            informacion.appendChild(
+                crearElemento(
+                    'div',
+                    'hb-alert-name',
+                    producto.nombre_comercial || producto.nombre
+                )
+            );
+
+            informacion.appendChild(
+                crearElemento(
+                    'div',
+                    'hb-alert-sku',
+                    'SKU: ' + producto.sku
+                )
+            );
+
+            const cantidad = crearElemento(
+                'span',
+                'hb-alert-count ' +
+                    (stock === 0 ? 'hb-status-empty' : 'hb-status-low'),
+                stock + ' unidades'
+            );
+
+            fila.append(informacion, cantidad);
+            tarjeta.appendChild(fila);
+        });
+
+        panel.appendChild(tarjeta);
+        contenedor.appendChild(panel);
+    }
+
+    function mostrarDatosVisuales(contenedor, datos) {
+        if (!Array.isArray(datos) || datos.length === 0) return;
+
+        const herramientas = datos.map(item => item.herramienta);
+        const filas = obtenerFilasMCP(datos);
+
+        if (
+            herramientas.includes('estadisticas_inventario') ||
+            herramientas.includes('resumen_inventario')
+        ) {
+            mostrarEstadisticas(contenedor, filas);
+        }
+
+        if (
+            herramientas.includes('detectar_alertas_stock') ||
+            herramientas.includes('productos_stock_bajo')
+        ) {
+            mostrarAlertas(contenedor, filas);
+        }
+
+        if (
+            herramientas.includes('consultar_stock') ||
+            herramientas.includes('buscar_producto_por_sku')
+        ) {
+            mostrarTarjetasProductos(contenedor, filas, 'producto');
+        }
+    }
+
     function agregarMensaje(texto, usuario = false) {
 
         const fila = document.createElement('div');
@@ -880,6 +1299,7 @@
                 throw new Error('Error del servidor');
             }
 
+            
             const datos = await respuesta.json();
 
             mostrarTexto(
@@ -887,6 +1307,10 @@
                 datos.respuesta ||
                 'No se obtuvo una respuesta.'
             );
+
+            // Mostrar tarjetas y paneles según los datos MCP.
+            mostrarDatosVisuales(espera, datos.datos || []);
+
 
         } catch (error) {
 

@@ -37,6 +37,45 @@ async def main():
             print("\nRESULTADO DE LA CONSULTA:")
             print(resultado.model_dump_json(indent=2))
 
+            # PRUEBAS DE LAS NUEVAS HERRAMIENTAS MCP
+
+            pruebas = [
+                (
+                    "buscar_producto_por_sku",
+                    {"sku": "HEG-003"}
+                ),
+                (
+                    "comparar_productos",
+                    {
+                        "producto_a": "HEG-001",
+                        "producto_b": "HEG-002"
+                    }
+                ),
+                (
+                    "estadisticas_inventario",
+                    {}
+                ),
+                (
+                    "detectar_alertas_stock",
+                    {"minimo": 5}
+                ),
+                (
+                    "listar_por_categoria",
+                    {"categoria": "a"}
+                )
+            ]
+
+            for nombre, argumentos in pruebas:
+                print(f"\nPROBANDO: {nombre}")
+
+                resultado = await sesion.call_tool(
+                    nombre,
+                    arguments=argumentos
+                )
+
+                print(resultado.model_dump_json(indent=2))
+
+
 
 if __name__ == "__main__":
     asyncio.run(main())
